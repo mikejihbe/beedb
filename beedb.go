@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+  "log"
 )
 
 var OnDebug = false
@@ -15,6 +16,7 @@ var PluralizeTableNames = false
 
 type Model struct {
 	Db              *sql.DB
+	Adapter         string
 	TableName       string
 	LimitStr        int
 	OffsetStr       int
@@ -35,13 +37,12 @@ type Model struct {
  * Add New sql.DB in the future i will add ConnectionPool.Get() 
  */
 func New(db *sql.DB, options ...interface{}) (m Model) {
-	if len(options) == 0 {
-		m = Model{Db: db, ColumnStr: "*", PrimaryKey: "Id", QuoteIdentifier: "`", ParamIdentifier: "?", ParamIteration: 1}
-	} else if options[0] == "pg" {
-		m = Model{Db: db, ColumnStr: "id", PrimaryKey: "Id", QuoteIdentifier: "\"", ParamIdentifier: options[0].(string), ParamIteration: 1}
-	} else if options[0] == "mssql" {
-		m = Model{Db: db, ColumnStr: "id", PrimaryKey: "id", QuoteIdentifier: "", ParamIdentifier: options[0].(string), ParamIteration: 1}
-	}
+  if len(options) == 0 {
+    m = Model{Db: db, Adapter: "default"}
+  } else {
+    m = Model{Db: db, Adapter: options[0].(string)}
+  }
+  m.InitModel()
 	return
 }
 
@@ -388,7 +389,11 @@ func (orm *Model) Save(output interface{}) error {
 	if reflect.ValueOf(id).Int() == 0 {
 		structPtr := reflect.ValueOf(output)
 		structVal := structPtr.Elem()
+    log.Println(orm.PrimaryKey)
 		structField := structVal.FieldByName(orm.PrimaryKey)
+    log.Println(structPtr)
+    log.Println(structVal)
+    log.Println(structField)
 		id, err := orm.Insert(results)
 		if err != nil {
 			return err
@@ -398,6 +403,7 @@ func (orm *Model) Save(output interface{}) error {
 		if err != nil {
 			return err
 		}
+    log.Println(x)
 		v = x
 		structField.Set(reflect.ValueOf(v))
 		return nil
@@ -662,4 +668,24 @@ func (orm *Model) InitModel() {
 	orm.GroupByStr = ""
 	orm.HavingStr = ""
 	orm.ParamIteration = 1
+	switch orm.Adapter {
+  case "default":
+    orm.ColumnStr = "*"
+    orm.PrimaryKey = "Id"
+    orm.QuoteIdentifier = "`"
+    orm.ParamIdentifier = "?"
+    orm.ParamIteration = 1
+  case "pg":
+		orm.ColumnStr = "id"
+    orm.PrimaryKey = "Id"
+    orm.QuoteIdentifier = "\""
+    orm.ParamIdentifier = orm.Adapter
+    orm.ParamIteration = 1
+	case "mssql":
+		orm.ColumnStr = "id"
+    orm.PrimaryKey = "id"
+    orm.QuoteIdentifier = ""
+    orm.ParamIdentifier = orm.Adapter
+    orm.ParamIteration = 1
+	}
 }
