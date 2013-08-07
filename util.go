@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+//  "log"
 )
 
 func getTypeName(obj interface{}) (typestr string) {
@@ -153,9 +154,10 @@ func scanStructIntoMap(obj interface{}) (map[string]interface{}, error) {
 		fieldName := field.Name
 
 		mapKey := snakeCasedName(fieldName)
-		value := dataStruct.FieldByName(fieldName).Interface()
-
-		mapped[mapKey] = value
+		value := dataStruct.FieldByName(fieldName)
+    if value.Kind().String() != "struct" { 
+		  mapped[mapKey] = value.Interface()
+    }
 	}
 
 	return mapped, nil
